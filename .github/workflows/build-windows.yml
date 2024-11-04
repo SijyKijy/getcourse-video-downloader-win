@@ -15,7 +15,7 @@ on:
     inputs:
       tag:
         description: 'Release tag'
-        required: true
+        required: false
         type: string
 
 jobs:
@@ -25,6 +25,48 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          $latestTag = git describe --tags `git rev-list --tags --max-count=1`
+          Write-Output "::set-output name=LATEST_TAG::$latestTag"
+        shell: pwsh
+
+      - name: Increment version
+        id: increment_version
+        run: |
+          if ("${{ github.event.inputs.tag }}" -ne "") {
+              $newTag = "${{ github.event.inputs.tag }}"
+          } elseif ("${{ steps.get_latest_tag.outputs.LATEST_TAG }}" -ne "") {
+              $latest = "${{ steps.get_latest_tag.outputs.LATEST_TAG }}"
+              if ($latest -match 'v(\d+)\.(\d+)\.(\d+)') {
+                  $major = [int]$matches[1]
+                  $minor = [int]$matches[2]
+                  $patch = [int]$matches[3] + 1
+                  $newTag = "v$major.$minor.$patch"
+              } else {
+                  $newTag = "v0.1.0"
+              }
+          } else {
+              $newTag = "v0.1.0"
+          }
+          Write-Output "::set-output name=NEW_TAG::$newTag"
+        shell: pwsh
+
+      - name: Create and push new tag
+        if: github.event.inputs.tag == ''
+        run: |
+          git tag ${{ steps.increment_version.outputs.NEW_TAG }}
+          git push origin ${{ steps.increment_version.outputs.NEW_TAG }}
+        shell: pwsh
 
       - name: Cache Go modules
         uses: actions/cache@v3
@@ -49,14 +91,25 @@ jobs:
       - name: Build application
         run: go build -o getcourse-video-downloader.exe .
 
+      - name: Determine release tag
+        id: determine_release_tag
+        run: |
+          if ("${{ github.event.inputs.tag }}" -ne "") {
+              $releaseTag = "${{ github.event.inputs.tag }}"
+          } else {
+              $releaseTag = "${{ steps.increment_version.outputs.NEW_TAG }}"
+          }
+          Write-Output "::set-output name=RELEASE_TAG::$releaseTag"
+        shell: pwsh
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          release_name: Release ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ steps.determine_release_tag.outputs.RELEASE_TAG }}
+          release_name: Release ${{ steps.determine_release_tag.outputs.RELEASE_TAG }}
           draft: false
           prerelease: false
 
