@@ -1,8 +1,8 @@
 # Download GetCourse videos without transcoding
 
-This software allows you to download HLS video streams from GetCourse without loss of quality, without the need for transcoding, and to merge them into a single video file. The program is written in Go language and is designed for use in Mac OS X operating system.  
+This software allows you to download HLS video streams from GetCourse without loss of quality, without the need for transcoding, and to merge them into a single video file. The program is written in Go language and is designed for use in **Windows** operating system.  
 
-The `bin` folder contains the compiled version.
+You can find compiled binaries in the [latest release](https://github.com/SijyKijy/getcourse-video-downloader/releases/latest).
 
 ![](img/pic01.png)
 
@@ -10,23 +10,14 @@ The `bin` folder contains the compiled version.
 
 **Software requires `ffmpeg` to work.**
 
-### – Homebrew
+### – Download FFmpeg
 
-If you do not have Homebrew installed, run the following commands in the terminal, otherwise skip this paragraph.
+Download `ffmpeg` from [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html) and add it to your system's PATH using the following PowerShell command (run as administrator):
 
-Run this command to install Homebrew:
-
-`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
-
-### – FFmpeg
-
-Then install FFmpeg using this command (terminal):
-
-`brew install ffmpeg`
-
-Then verify that the installation completed successfully:
-
-`ffmpeg -version`
+Example command:
+```ps
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\ffmpeg\bin", "Machine")
+```
 
 ## 1. How to get a link to a video
 
@@ -40,17 +31,13 @@ Then verify that the installation completed successfully:
 
 ![](img/pic02.png)
 
-## 2. Running the program 
+## 2. Running the program
 
 ### – If you're new
 
-Simply download the program binary from the `bin` directory and run it with the following parameters:
+Simply [download](https://github.com/SijyKijy/getcourse-video-downloader/releases/latest) the program binary and run it with the following parameters on Windows:
 
-`./getcourse-video-downloader <playlist_url> <output_file>`, where:
-
-`playlist_url` — link to HLS video stream playlist
-
-`output_file` — file name where the final video should be saved (video.mp4)
+`.\getcourse-video-downloader.exe 'https://player02.getcourse.ru/api/playlist/media/...' aboba.mp4`
 
 ### – If you're a dev
 
@@ -59,7 +46,3 @@ You know what to do.
 ## Thanks to
 
 The general logic is inspired by [mikhailnov](https://github.com/mikhailnov/getcourse-video-downloader), but his solution at the moment of publishing this readme has a significant problem with sound in clips after assembling them (obvious clicks at the beginning of each segment of the HLS video stream).
-
-## Q?
-
-Have any questions? [Create a new issue](https://github.com/dzatona/getcourse-video-downloader/issues/new/choose), I will try to help you.
