@@ -1,189 +1,121 @@
 package downloader
 
 import (
-    "bufio"
-    "fmt"
-    "io"
-    "log"
-    "net/http"
-    "net/url"
-    "os"
-    "path/filepath"
-    "strings"
-    "sync"
-    "time"
+	"bufio"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 
-    "github.com/schollz/progressbar/v3"
+	"github.com/schollz/progressbar/v3"
 )
-
-const (
-    MaxConcurrentDownloads = 50               // Increased for higher parallelism
-    MaxRetryAttempts       = 5                // Increased retry attempts for robustness
-    RetryDelay             = 1 * time.Second  // Reduced delay for faster retries
-)
-
-var client = &http.Client{
-    Timeout: 60 * time.Second,                 // Increased timeout for slower connections
-    Transport: &http.Transport{
-        MaxIdleConns:        200,              // Increased for better connection pooling
-        MaxIdleConnsPerHost: 100,              // Increased to support more concurrent connections per host
-        IdleConnTimeout:     120 * time.Second, // Idle connection timeout
-        ForceAttemptHTTP2:   true,             // Enable HTTP/2 for better performance
-    },
-}
 
 func DownloadPlaylist(playlistURL string) ([]string, error) {
-    resp, err := client.Get(playlistURL)
-    if (err != nil) {
-        return nil, fmt.Errorf("error fetching playlist: %w", err)
-    }
-    defer func() {
-        if err := resp.Body.Close(); err != nil {
-            log.Printf("Error closing response body: %v", err)
-        }
-    }()
+	resp, err := http.Get(playlistURL)
+	if err != nil {
+		return nil, err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing body: %v", err)
+		}
+	}(resp.Body)
 
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return nil, fmt.Errorf("error reading playlist body: %w", err)
-    }
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
-    var playlist []string
-    scanner := bufio.NewScanner(strings.NewReader(string(body)))
-    for scanner.Scan() {
-        line := scanner.Text()
-        if strings.HasPrefix(line, "http") {
-            playlist = append(playlist, line)
-        } else if !strings.HasPrefix(line, "#") && strings.TrimSpace(line) != "" {
-            baseURL, err := url.Parse(playlistURL)
-            if err != nil {
-                log.Printf("Error parsing base URL: %v", err)
-                continue
-            }
-            relativeURL, err := url.Parse(line)
-            if err != nil {
-                log.Printf("Error parsing relative URL '%s': %v", line, err)
-                continue
-            }
-            absoluteURL := baseURL.ResolveReference(relativeURL)
-            playlist = append(playlist, absoluteURL.String())
-        }
-    }
+	var playlist []string
+	scanner := bufio.NewScanner(strings.NewReader(string(body)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "http") {
+			playlist = append(playlist, line)
+		} else if !strings.HasPrefix(line, "#") {
+			baseURL, _ := url.Parse(playlistURL)
+			relativeURL, _ := url.Parse(line)
+			absoluteURL := baseURL.ResolveReference(relativeURL)
+			playlist = append(playlist, absoluteURL.String())
+		}
+	}
 
-    if len(playlist) == 0 {
-        scanner = bufio.NewScanner(strings.NewReader(string(body)))
-        var lastLine string
-        for scanner.Scan() {
-            lastLine = scanner.Text()
-        }
-        if strings.HasPrefix(lastLine, "http") {
-            return DownloadPlaylist(lastLine)
-        }
-        return nil, fmt.Errorf("no valid URLs found in the playlist")
-    }
+	if len(playlist) == 0 {
+		scanner = bufio.NewScanner(strings.NewReader(string(body)))
+		var lastLine string
+		for scanner.Scan() {
+			lastLine = scanner.Text()
+		}
+		if strings.HasPrefix(lastLine, "http") {
+			return DownloadPlaylist(lastLine)
+		}
+		return nil, fmt.Errorf("no valid URLs found in the playlist")
+	}
 
-    return playlist, scanner.Err()
+	return playlist, scanner.Err()
 }
 
 func DownloadFiles(playlist []string) error {
-    if len(playlist) < 2 {
-        return fmt.Errorf("the playlist contains insufficient files to download")
-    }
+	bar := progressbar.NewOptions(len(playlist)-1,
+		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionShowCount(),
+		progressbar.OptionSetWidth(50),
+		progressbar.OptionSetDescription("Downloading"),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "[green]=[reset]",
+			SaucerHead:    "[green]>[reset]",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}))
 
-    bar := progressbar.NewOptions(len(playlist)-1,
-        progressbar.OptionEnableColorCodes(true),
-        progressbar.OptionShowCount(),
-        progressbar.OptionSetWidth(50),
-        progressbar.OptionSetDescription("Downloading"),
-        progressbar.OptionSetWriter(os.Stdout),
-        progressbar.OptionSetTheme(progressbar.Theme{
-            Saucer:        "[green]=[reset]",
-            SaucerHead:    "[green]>[reset]",
-            SaucerPadding: " ",
-            BarStart:      "[",
-            BarEnd:        "]",
-        }),
-    )
+	for i := 1; i < len(playlist); i++ {
+		urlString := playlist[i]
+		fileName := filepath.Join("parts", fmt.Sprintf("file_%05d.ts", i-1))
 
-    var wg sync.WaitGroup
-    sem := make(chan struct{}, MaxConcurrentDownloads)
-    errChan := make(chan error, len(playlist)-1)
+		err := downloadFile(urlString, fileName)
+		if err != nil {
+			return fmt.Errorf("error downloading file %d: %w", i, err)
+		}
 
-    for i := 1; i < len(playlist); i++ {
-        wg.Add(1)
-        go func(i int) {
-            defer wg.Done()
+		err = bar.Add(1)
+		if err != nil {
+			log.Printf("Error adding bar item to download progress: %v", err)
+		}
+	}
 
-            sem <- struct{}{}
-            defer func() { <-sem }()
-
-            urlString := playlist[i]
-            fileName := filepath.Join("parts", fmt.Sprintf("file_%05d.ts", i-1))
-
-            var err error
-            for attempt := 1; attempt <= MaxRetryAttempts; attempt++ {
-                err = downloadFile(urlString, fileName)
-                if err == nil {
-                    break
-                }
-                log.Printf("Error downloading %s (attempt %d/%d): %v", urlString, attempt, MaxRetryAttempts, err)
-                time.Sleep(RetryDelay)
-            }
-            if err != nil {
-                errChan <- fmt.Errorf("error downloading file %d: %w", i, err)
-                return
-            }
-
-            if err := bar.Add(1); err != nil {
-                log.Printf("Error updating progress bar: %v", err)
-            }
-        }(i)
-    }
-
-    wg.Wait()
-    close(errChan)
-
-    var combinedError string
-    for err := range errChan {
-        combinedError += err.Error() + "\n"
-    }
-    if combinedError != "" {
-        return fmt.Errorf("errors occurred while downloading files:\n%s", combinedError)
-    }
-
-    fmt.Println()
-    return nil
+	fmt.Println()
+	return nil
 }
 
 func downloadFile(urlString, fileName string) error {
-    resp, err := client.Get(urlString)
-    if err != nil {
-        return fmt.Errorf("error fetching URL %s: %w", urlString, err)
-    }
-    defer func() {
-        if err := resp.Body.Close(); err != nil {
-            log.Printf("Error closing response body for %s: %v", urlString, err)
-        }
-    }()
+	resp, err := http.Get(urlString)
+	if err != nil {
+		return err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing body: %v", err)
+		}
+	}(resp.Body)
 
-    if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("non-200 HTTP status: %s", resp.Status)
-    }
+	out, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	defer func(out *os.File) {
+		err := out.Close()
+		if err != nil {
+			log.Printf("Error closing file: %v", err)
+		}
+	}(out)
 
-    out, err := os.Create(fileName)
-    if err != nil {
-        return fmt.Errorf("error creating file %s: %w", fileName, err)
-    }
-    defer func() {
-        if err := out.Close(); err != nil {
-            log.Printf("Error closing file %s: %v", fileName, err)
-        }
-    }()
-
-    _, err = io.Copy(out, resp.Body)
-    if err != nil {
-        return fmt.Errorf("error writing to file %s: %w", fileName, err)
-    }
-
-    return nil
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
