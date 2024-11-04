@@ -26,7 +26,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0 
 
       - name: Set up Git
         run: |
@@ -36,29 +36,36 @@ jobs:
       - name: Get latest tag
         id: get_latest_tag
         run: |
-          $latestTag = git describe --tags `git rev-list --tags --max-count=1`
-          Write-Output "::set-output name=LATEST_TAG::$latestTag"
+          try {
+              $latestTag = git describe --tags $(git rev-list --tags --max-count=1)
+          } catch {
+              $latestTag = ""
+          }
+          echo "LATEST_TAG=${latestTag}" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
       - name: Increment version
         id: increment_version
         run: |
-          if ("${{ github.event.inputs.tag }}" -ne "") {
+          if (${{ github.event.inputs.tag }} -ne "") {
               $newTag = "${{ github.event.inputs.tag }}"
-          } elseif ("${{ steps.get_latest_tag.outputs.LATEST_TAG }}" -ne "") {
+          }
+          elseif (${{ steps.get_latest_tag.outputs.LATEST_TAG }} -ne "") {
               $latest = "${{ steps.get_latest_tag.outputs.LATEST_TAG }}"
-              if ($latest -match 'v(\d+)\.(\d+)\.(\d+)') {
+              if ($latest -match '^v(\d+)\.(\d+)\.(\d+)$') {
                   $major = [int]$matches[1]
                   $minor = [int]$matches[2]
                   $patch = [int]$matches[3] + 1
                   $newTag = "v$major.$minor.$patch"
-              } else {
+              }
+              else {
                   $newTag = "v0.1.0"
               }
-          } else {
+          }
+          else {
               $newTag = "v0.1.0"
           }
-          Write-Output "::set-output name=NEW_TAG::$newTag"
+          echo "NEW_TAG=$newTag" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
       - name: Create and push new tag
@@ -96,10 +103,11 @@ jobs:
         run: |
           if ("${{ github.event.inputs.tag }}" -ne "") {
               $releaseTag = "${{ github.event.inputs.tag }}"
-          } else {
+          }
+          else {
               $releaseTag = "${{ steps.increment_version.outputs.NEW_TAG }}"
           }
-          Write-Output "::set-output name=RELEASE_TAG::$releaseTag"
+          echo "RELEASE_TAG=$releaseTag" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
       - name: Create Release
