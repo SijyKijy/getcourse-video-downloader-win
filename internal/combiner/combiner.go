@@ -10,7 +10,7 @@ import (
 )
 
 func CombineFiles(outputFile string) error {
-	listFile, err := os.Create("ffmpeg_list_*.txt")
+	listFile, err := os.Create("ffmpeg_list_all.txt")
 	if err != nil {
 		return err
 	}
