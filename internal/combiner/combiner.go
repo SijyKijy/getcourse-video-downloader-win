@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 func CombineFiles(outputFile string) error {
@@ -28,7 +29,9 @@ func CombineFiles(outputFile string) error {
 	sort.Strings(files)
 
 	for _, file := range files {
-		_, err := listFile.WriteString(fmt.Sprintf("file '%s'\n", file))
+		// Convert the file path to a format with forward slashes
+		unifiedPath := filepath.ToSlash(file)
+		_, err := listFile.WriteString(fmt.Sprintf("file '%s'\n", unifiedPath))
 		if err != nil {
 			return err
 		}
