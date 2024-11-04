@@ -7,11 +7,16 @@ on:
       - master
     tags:
       - 'v*.*.*'
+    paths:
+      - '**/*.go'
+      - 'build-windows.yml'
 
-  pull_request:
-    branches:
-      - main
-      - master
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -25,8 +30,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
+            %GOCACHE%
+            %GOMODCACHE%
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
@@ -38,8 +43,8 @@ jobs:
 
       - name: Set environment variables
         run: |
-          echo "GOOS=windows" >> $GITHUB_ENV
-          echo "GOARCH=amd64" >> $GITHUB_ENV
+          echo "GOOS=windows" >> $env:GITHUB_ENV
+          echo "GOARCH=amd64" >> $env:GITHUB_ENV
 
       - name: Build application
         run: go build -o getcourse-video-downloader.exe .
@@ -47,14 +52,18 @@ jobs:
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          release_name: Release ${{ github.event.inputs.tag || github.ref_name }}
           draft: false
           prerelease: false
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./getcourse-video-downloader.exe
