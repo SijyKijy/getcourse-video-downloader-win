@@ -31,6 +31,12 @@ Example command:
 
 ![](img/pic02.png)
 
+### Generator
+You can use a [generator site](https://sijykijy.github.io/getcourse-video-downloader-win/website/).
+To do this, you need to copy the html code of the frame with the video and paste it into the site
+
+![image](https://github.com/user-attachments/assets/80a1024a-0f4b-47c3-abd5-8b148d1ed847)
+
 ## 2. Running the program
 
 ### – If you're new
