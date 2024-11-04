@@ -36,21 +36,23 @@ jobs:
       - name: Get latest tag
         id: get_latest_tag
         run: |
-          try {
-              $latestTag = git describe --tags $(git rev-list --tags --max-count=1)
-          } catch {
+          $latestCommit = git rev-list --tags --max-count=1
+          if ($latestCommit) {
+              $latestTag = git describe --tags $latestCommit
+          }
+          else {
               $latestTag = ""
           }
-          echo "LATEST_TAG=${latestTag}" >> $env:GITHUB_OUTPUT
+          echo "LATEST_TAG=$latestTag" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
       - name: Increment version
         id: increment_version
         run: |
-          if (${{ github.event.inputs.tag }} -ne "") {
+          if ("${{ github.event.inputs.tag }}" -ne "") {
               $newTag = "${{ github.event.inputs.tag }}"
           }
-          elseif (${{ steps.get_latest_tag.outputs.LATEST_TAG }} -ne "") {
+          elseif ("${{ steps.get_latest_tag.outputs.LATEST_TAG }}" -ne "") {
               $latest = "${{ steps.get_latest_tag.outputs.LATEST_TAG }}"
               if ($latest -match '^v(\d+)\.(\d+)\.(\d+)$') {
                   $major = [int]$matches[1]
