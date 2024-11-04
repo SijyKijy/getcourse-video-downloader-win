@@ -1,10 +1,13 @@
-name: Build for Windows
+name: Build and Release for Windows
 
 on:
   push:
     branches:
       - main
       - master
+    tags:
+      - 'v*.*.*'
+
   pull_request:
     branches:
       - main
@@ -38,14 +41,22 @@ jobs:
           echo "GOOS=windows" >> $GITHUB_ENV
           echo "GOARCH=amd64" >> $GITHUB_ENV
 
-      # - name: Run tests
-      #   run: go test ./...
-
       - name: Build application
         run: go build -o getcourse-video-downloader.exe .
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
         with:
-          name: windows-binary
-          path: getcourse-video-downloader.exe
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./getcourse-video-downloader.exe
+          asset_name: getcourse-video-downloader.exe
+          asset_content_type: application/octet-stream
