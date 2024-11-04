@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="dark">
+    <title>Generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #181818;
+            color: #cdcdcd;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #242424;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            margin-bottom: 20px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 14px;
+            background-color: #2a2a2a;
+            color: #cdcdcd;
+            border: 1px solid #3a3a3a;
+            border-radius: 3px;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #4a4a4a;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        select {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 3px;
+            border: 1px solid #3a3a3a;
+            background-color: #2a2a2a;
+            color: #cdcdcd;
+        }
+        select:focus {
+            outline: none;
+            border-color: #4a4a4a;
+        }
+        .filename-input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 3px;
+            border: 1px solid #3a3a3a;
+            background-color: #2a2a2a;
+            color: #cdcdcd;
+            width: 200px;
+        }
+        .filename-input:focus {
+            outline: none;
+            border-color: #4a4a4a;
+        }
+        button {
+            padding: 10px 20px;
+            background: #2d5a3c;
+            color: #cdcdcd;
+            border: none;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background: #367347;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 10px;
+            background: #2a2a2a;
+            border-radius: 3px;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #3a3a3a;
+        }
+        .command-block {
+            margin-top: 20px;
+            padding: 10px;
+            background: #2a2a2a;
+            border-radius: 3px;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #3a3a3a;
+        }
+        .command {
+            margin-top: 10px;
+            padding: 10px;
+            background: #1e1e1e;
+            border-radius: 3px;
+            border: 1px solid #3a3a3a;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .quality-label {
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        a {
+            color: #6ba7ff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .output button, .command-block button {
+            background: #2d5a3c;
+            margin-top: 10px;
+        }
+        .output button:hover, .command-block button:hover {
+            background: #367347;
+        }
+        .section-title {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #cdcdcd;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2a2a2a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Generator 😎</h2>
+        <textarea id="inputString" placeholder="Paste your HTML string here"></textarea>
+        <div class="controls">
+            <span class="quality-label">Video Quality:</span>
+            <select id="quality">
+                <option value="360">360p</option>
+                <option value="480">480p</option>
+                <option value="720">720p</option>
+                <option value="1080" selected>1080p</option>
+                <option value="1440">1440p</option>
+            </select>
+            <input type="text" id="filename" placeholder="Enter filename (optional)" class="filename-input">
+            <button onclick="convertString()">Convert</button>
+        </div>
+        <div class="section-title">Generated URL:</div>
+        <div class="output" id="outputURL"></div>
+        <div class="section-title">Download Command:</div>
+        <div class="command-block" id="commandBlock"></div>
+    </div>
+
+    <script>
+        function convertString() {
+            const input = document.getElementById('inputString').value;
+            const quality = document.getElementById('quality').value;
+
+            function extractValue(regexArray) {
+                for (let regex of regexArray) {
+                    const match = input.match(regex);
+                    if (match && match[1]) {
+                        return match[1];
+                    }
+                }
+                return null;
+            }
+
+            const videoHash = extractValue([
+                /"videoHash"\s*:\s*"([^"]+)"/,
+                /"video-hash"\s*:\s*"([^"]+)"/
+            ]);
+            
+            const viewId = extractValue([
+                /"ViewId"\s*:\s*"([^"]+)"/,
+                /"viewId"\s*:\s*"([^"]+)"/
+            ]);
+            
+            const userId = extractValue([
+                /"userId"\s*:\s*(-?\d+)/,
+                /"user-id"\s*:\s*(-?\d+)/
+            ]);
+            
+            const masterPlaylistUrl = extractValue([
+                /"masterPlaylistUrl"\s*:\s*"([^"]+)"/
+            ]);
+            
+            let jwt = null;
+            if (masterPlaylistUrl) {
+                const jwtMatch = masterPlaylistUrl.match(/jwt=([^&]+)/);
+                if (jwtMatch) {
+                    jwt = jwtMatch[1];
+                }
+            }
+
+            if (videoHash && viewId && userId && jwt) {
+                const url = `https://player02.getcourse.ru/api/playlist/media/${videoHash}/${viewId}/${quality}?consumer=vod&sid=&user-cdn=cdnvideo&version=18%3A2%3A1%3A0%3Acdnvideo&user-id=${userId}&jwt=${jwt}`;
+                
+                let filename = document.getElementById('filename').value.trim();
+                if (!filename) {
+                    const now = new Date();
+                    filename = now.getFullYear() + 
+                        '-' + String(now.getMonth() + 1).padStart(2, '0') + 
+                        '-' + String(now.getDate()).padStart(2, '0') + 
+                        '-' + String(now.getHours()).padStart(2, '0') + 
+                        '-' + String(now.getMinutes()).padStart(2, '0') + 
+                        '-' + String(now.getSeconds()).padStart(2, '0');
+                }
+                
+                if (!filename.toLowerCase().endsWith('.mp4')) {
+                    filename += '.mp4';
+                }
+
+                const command = `.\\getcourse-video-downloader.exe '${url}' ${filename}`;
+                
+                // URL output
+                const urlHtml = `
+                    <div style="margin-bottom: 10px;">
+                        <a href="${url}" target="_blank">${url}</a>
+                    </div>
+                    <button onclick="copyToClipboard('${url}')" style="font-size: 14px; padding: 5px 10px;">
+                        Copy URL
+                    </button>
+                `;
+                
+                // Command output
+                const commandHtml = `
+                    <div class="command">${command}</div>
+                    <button onclick="copyToClipboard('${command}')" style="font-size: 14px; padding: 5px 10px;">
+                        Copy Command
+                    </button>
+                `;
+                
+                document.getElementById('outputURL').innerHTML = urlHtml;
+                document.getElementById('commandBlock').innerHTML = commandHtml;
+            } else {
+                const errorHtml = `
+                    <span class="error">
+                        Failed to find required parameters in the string.<br>
+                        videoHash: ${videoHash}<br>
+                        viewId: ${viewId}<br>
+                        userId: ${userId}<br>
+                        jwt: ${jwt}
+                    </span>
+                `;
+                document.getElementById('outputURL').innerHTML = errorHtml;
+                document.getElementById('commandBlock').innerHTML = '';
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Error copying to clipboard: ', err);
+                alert('Failed to copy. Please copy manually.');
+            });
+        }
+    </script>
+</body>
+</html>
