@@ -9,6 +9,7 @@ import (
     "net/url"
     "os"
     "path/filepath"
+    "runtime"
     "strings"
     "sync"
     "time"
@@ -16,25 +17,32 @@ import (
     "github.com/schollz/progressbar/v3"
 )
 
-const (
-    MaxConcurrentDownloads = 50               // Increased for higher parallelism
-    MaxRetryAttempts       = 5                // Increased retry attempts for robustness
-    RetryDelay             = 1 * time.Second  // Reduced delay for faster retries
+var (
+    MaxConcurrentDownloads int // Increased for higher parallelism
+    MaxRetryAttempts       = 5 // Increased retry attempts for robustness
+    RetryDelay             = 1 * time.Second // Reduced delay for faster retries
 )
 
-var client = &http.Client{
-    Timeout: 60 * time.Second,                 // Increased timeout for slower connections
-    Transport: &http.Transport{
-        MaxIdleConns:        200,              // Increased for better connection pooling
-        MaxIdleConnsPerHost: 100,              // Increased to support more concurrent connections per host
-        IdleConnTimeout:     120 * time.Second, // Idle connection timeout
-        ForceAttemptHTTP2:   true,             // Enable HTTP/2 for better performance
-    },
+var client *http.Client
+
+func init() {
+    cores := runtime.NumCPU()
+    MaxConcurrentDownloads = cores * 10
+
+    client = &http.Client{
+        Timeout: 60 * time.Second, // Increased timeout for slower connections
+        Transport: &http.Transport{
+            MaxIdleConns:        cores * 20, // Increased for better connection pooling
+            MaxIdleConnsPerHost: cores * 10, // Increased to support more concurrent connections per host
+            IdleConnTimeout:     120 * time.Second, // Idle connection timeout
+            ForceAttemptHTTP2:   true, // Enable HTTP/2 for better performance
+        },
+    }
 }
 
 func DownloadPlaylist(playlistURL string) ([]string, error) {
     resp, err := client.Get(playlistURL)
-    if (err != nil) {
+    if err != nil {
         return nil, fmt.Errorf("error fetching playlist: %w", err)
     }
     defer func() {
@@ -119,6 +127,13 @@ func DownloadFiles(playlist []string) error {
 
             urlString := playlist[i]
             fileName := filepath.Join("parts", fmt.Sprintf("file_%05d.ts", i-1))
+
+            if _, err := os.Stat(fileName); err == nil {
+                if err := bar.Add(1); err != nil {
+                    log.Printf("Error updating progress bar: %v", err)
+                }
+                return
+            }
 
             var err error
             for attempt := 1; attempt <= MaxRetryAttempts; attempt++ {

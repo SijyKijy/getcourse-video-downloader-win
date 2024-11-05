@@ -12,7 +12,7 @@ import (
 func main() {
     utils.ClearScreen()
     utils.PrintWelcomeMessage()
-    utils.ClearParts()
+    // utils.ClearParts()
 
     log.SetFlags(log.Ldate | log.Ltime)
 
