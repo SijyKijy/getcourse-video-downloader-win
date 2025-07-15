@@ -37,6 +37,8 @@
 Вы можете использовать [сайт-генератор](https://sijykijy.github.io/getcourse-video-downloader-win/website/).
 Для этого нужно скопировать html-код фрейма с видео и вставить его на сайт
 
+<img width="658" height="500" alt="image" src="https://github.com/user-attachments/assets/5dfd6163-314a-4ac3-a531-ebeed7f99c8d" />
+
 ![image](https://github.com/user-attachments/assets/80a1024a-0f4b-47c3-abd5-8b148d1ed847)
 
 ## 2. Запуск программы
