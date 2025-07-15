@@ -249,13 +249,16 @@
                 // Command output
                 const commandHtml = `
                     <div class="command">${command}</div>
-                    <button onclick="copyToClipboard('${command}')" style="font-size: 14px; padding: 5px 10px;">
-                        Copy Command
-                    </button>
                 `;
                 
+                const btnCmd = document.createElement('button');
+                btnCmd.textContent = 'Copy Command';
+                btnCmd.addEventListener('click', () => copyToClipboard(command));
+                
                 document.getElementById('outputURL').innerHTML = urlHtml;
-                document.getElementById('commandBlock').innerHTML = commandHtml;
+                const cmdBlk = document.getElementById('commandBlock');
+                cmdBlk.innerHTML = commandHtml;
+                cmdBlk.appendChild(btnCmd);
             } else {
                 const errorHtml = `
                     <span class="error">
